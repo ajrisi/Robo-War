@@ -1,0 +1,54 @@
+Project:
+	Robo-Wars
+Team Members:
+     Adam Risi
+     Jon Potter
+
+Project Description/Checkpoint 2:
+	Overview:
+
+		In project Robo-War, we will be using genetic
+		algorithms to generate small programs that simulated
+		robots will execute. The whole of the population will
+		be executing at the same time, allowing the robots to
+		"war" against eachother. When the number of remaining
+		robots in the population reaches a given amount, new
+		robots will be generated using crossover and
+		mutatation methods. This "live" approach to a fitness
+		function means that as the program runs, we will get
+		to see the actual evolution of the robots from
+		"brainless" drones, to something that should be a
+		considerably stong warrior.
+
+	Instance:
+		
+		The parameters of the problem are mostly the
+		description of what the robots can "do" (motion,
+		wepons, etc.) and the environment that they will be
+		doing it in. The robots tentative abilities will be to
+		turn, move forward or reverse, aim, and fire. As the
+		programs development continues, the robots will be
+		given more specific senses, like the ability to find
+		groupings of other robots, etc. The environment will
+		be a NxN space, with (presumably) a couple of
+		obstacles.
+
+	Solution:
+
+		As a system with no perfect solution, the solution
+		space is infinitely large. The program has the ability
+		ot keep running as long as the user wants, and the
+		ability to generate more and more complex
+		warriors. The system will be run for as long as
+		possible once development has reached stability. In
+		code, each robot will have a "solution," - its
+		internal program.
+
+	Output:
+
+		The output of this GA will be the source code for the
+		different warring robots, and how well that given
+		source code has done over time. How many battles the
+		robot has survived, how many robots it has killed,
+		etc. will all be used to judge the functionality of
+		the robot.

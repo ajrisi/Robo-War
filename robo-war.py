@@ -21,6 +21,13 @@ class Point:
 	def __init__(self, x = 0, y = 0):
 		self.x = x
 		self.y = y
+	
+	
+	def __cmp__(self, other):
+		xCmp = cmp(self.x, other.x)
+		yCmp = cmp(self.y, other.y)
+		
+		return yCmp if xCmp is 0 else xCmp
 
 
 class Bullet:
@@ -43,9 +50,11 @@ class Bullet:
 		self.damage = damage
 	
 	
+	def __cmp__(self, other):
+		return cmp(self.bulletId, other.bulletId)
+	
 	def draw(self):
 		self.arena.env.addstr(self.location.y, self.location.x, ".")
-		self.arena.env.refresh()
 	
 	
 	def go(self):
@@ -64,14 +73,10 @@ class Bullet:
 		# see if we will collide when we advance
 		hadCollision = (self.doCollision() or hadCollision)
 		
-		self.arena.env.addstr(oldY, oldX, " ")
-		self.arena.env.refresh()
-		
-		if not hadCollision:
-			self.draw()
-		else: # had collision
-			self.arena.env.addstr(oldY, oldX, "*")
-			self.arena.env.refresh()
+		if hadCollision:
+			self.arena.removeBullets([self])
+		else:
+			self.arena.redraw()
 		
 		return hadCollision
 	
@@ -99,66 +104,6 @@ class Bullet:
 		return False
 
 
-class Arena:
-	robots = None
-	bullets = None
-	dimensions = None
-	env = None
-	
-	def __init__(self, xDimension, yDimension, env = None):
-		self.robots = []
-		self.bullets = []
-		self.dimensions = Point(xDimension, yDimension)
-		self.env = env
-	
-	
-	def fire(self, bullet):
-		self.addBullets([bullet])
-		bullet.go()
-	
-	
-	def addBullets(self, bullets):
-		for b in bullets:
-			# don't add duplicates
-			if self.indexOfBullet(b) < 0:
-				b.arena = self
-				self.bullets += [b]
-	
-	
-	def addRobots(self, robots):
-		for r in robots:
-			# don't add duplicates
-			if self.indexOfRobot(r) < 0:
-				r.arena = self
-				self.robots += [r]
-	
-	def indexOfBullet(self, bullet):
-		for i in range(len(self.bullets)):
-			if self.bullets[i].bulletId == bullet.bulletId:
-				return i
-		
-		return -1
-	
-	
-	def indexOfRobot(self, robot):
-		for i in range(len(self.robots)):
-			if self.robots[i].robotId == robot.robotId:
-				return i
-		
-		return -1
-	
-	def checkCollision(self, point, robotToTest):
-		for r in self.robots:
-			if robotToTest.robotId != r.robotId and point.x == r.location.x and point.y == r.location.y:
-				# print "robot id %s collided with robot id %s. Locations (%s, %s) (%s, %s)" % (robotToTest.robotId, r.robotId, robotToTest.location.x, robotToTest.location.y, r.location.x, r.location.y)
-				return 1
-			if point.x > self.dimensions.x or point.y > self.dimensions.y or point.x < 0 or point.y < 0:
-				# print "robot id %s hit the wall." % robotToTest.robotId
-				return 1
-		
-		return 0
-
-
 class Robot:
 	# static
 	staticIdCounter = 0
@@ -181,9 +126,12 @@ class Robot:
 		self.health = 100
 	
 	
+	def __cmp__(self, other):
+		return cmp(self.robotId, other.robotId)
+	
+	
 	def draw(self):
 		self.arena.env.addstr(self.location.y, self.location.x, self.displayString())
-		self.arena.env.refresh()
 	
 	
 	def runInstructions(self):
@@ -199,6 +147,7 @@ class Robot:
 					"fire":       self.fire }
 		
 		action[x]()
+		self.arena.redraw()
 		time.sleep(.5)
 	
 	
@@ -211,10 +160,10 @@ class Robot:
 			display = "<"
 		else: # right
 			display = ">"
-		
+	
 		return display
-		
-		
+	
+	
 	def fire(self):
 		bulletDirection = self.direction
 		bulletLocation = nextPosition(self.location, bulletDirection)
@@ -222,35 +171,31 @@ class Robot:
 		bullet = Bullet(bulletLocation, bulletDirection)
 		self.arena.fire(bullet)
 	
-		
+	
 	def spinLeft(self):
 		self.spin(-1)
-		
-		
+	
+	
 	def spinRight(self):
 		self.spin(1)
-		
-		
+	
+	
 	# direction should be 1/-1 for right/left respectively
 	def spin(self, direction):
 		d = ["up", "right", "down", "left"]
 		currentIndex = d.index(self.direction)
 		newIndex = (currentIndex + (1*direction)) % len(d)
 		self.direction = d[newIndex]
-		
-		self.arena.env.addstr(self.location.y, self.location.x, " ")
-		self.arena.env.addstr(self.location.y, self.location.x, self.displayString())
-		self.arena.env.refresh()
-		
-		
+	
+	
 	def moveForward(self):
 		self.move(1)
-		
-		
+	
+	
 	def moveReverse(self):
 		self.move(-1)
-		
-		
+	
+	
 	# direction should be -1/1 for reverse/forward respectively
 	def move(self, direction):
 		deltaX = 0
@@ -269,14 +214,86 @@ class Robot:
 		newY = self.location.y + deltaY
 		
 		# if no collision (legal move)
-		if 0 == self.arena.checkCollision(Point(newX, newY), self):			
-			self.arena.env.addstr(self.location.y, self.location.x, " ")
-			self.arena.env.addstr(newY, newX, self.displayString())
-			self.arena.env.refresh()
-		
+		if 0 == self.arena.checkCollision(Point(newX, newY), self):
 			self.location.x = newX
 			self.location.y = newY
+	
 
+
+class Arena:
+	robots = None
+	bullets = None
+	dimensions = None
+	env = None
+	
+	def __init__(self, xDimension, yDimension, env = None):
+		self.robots = []
+		self.bullets = []
+		self.dimensions = Point(xDimension, yDimension)
+		self.env = env
+	
+	
+	def redraw(self):
+		self.env.clear()
+		self.draw()
+		self.env.refresh()
+	
+	
+	def draw(self):
+		for r in self.robots:
+			r.draw()
+		
+		for b in self.bullets:
+					b.draw()
+		
+	
+	
+	
+	def fire(self, bullet):
+		self.addBullets([bullet])
+		bullet.go()
+	
+	
+	def addBullets(self, bullets):
+		for b in bullets:
+			# don't add duplicates
+			try:
+				self.bullets.index(b)
+			except:
+				b.arena = self
+				self.bullets += [b]
+	
+	
+	def removeBullets(self, bullets):
+		for b in bullets:
+			self.bullets.remove(b)
+	
+	
+	def addRobots(self, robots):
+		for r in robots:
+			# don't add duplicates
+			try:
+				self.robots.index(r)
+			except:
+				r.arena = self
+				self.robots += [r]
+	
+	
+	def removeRobots(self, robots):
+		for r in robots:
+			self.robots.remove(r)
+	
+	
+	def checkCollision(self, point, robotToTest):
+		for r in self.robots:
+			if robotToTest.robotId != r.robotId and point.x == r.location.x and point.y == r.location.y:
+				# print "robot id %s collided with robot id %s. Locations (%s, %s) (%s, %s)" % (robotToTest.robotId, r.robotId, robotToTest.location.x, robotToTest.location.y, r.location.x, r.location.y)
+				return 1
+			if point.x > self.dimensions.x or point.y > self.dimensions.y or point.x < 0 or point.y < 0:
+				# print "robot id %s hit the wall." % robotToTest.robotId
+				return 1
+		
+		return 0
 
 
 def runGA(env):
@@ -352,6 +369,7 @@ def nextPosition(location, direction, amount = 1):
 
 def main():
 	curses.wrapper(runGA)
-	
+
+
 if __name__ == '__main__':
 	main()

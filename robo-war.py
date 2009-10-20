@@ -54,7 +54,7 @@ class Bullet:
 		return cmp(self.bulletId, other.bulletId)
 	
 	def draw(self):
-		self.arena.env.addstr(self.location.y, self.location.x, ".")
+		self.arena.drawString(self.location.x, self.location.y, ".")
 	
 	
 	def go(self):
@@ -65,18 +65,14 @@ class Bullet:
 		# see if we are already colliding with something
 		hadCollision = self.doCollision()
 		
-		oldX = self.location.x
-		oldY = self.location.y
-		
-		self.location = nextPosition(self.location, self.direction)
-		
 		# see if we will collide when we advance
+		self.location = nextPosition(self.location, self.direction)		
 		hadCollision = (self.doCollision() or hadCollision)
 		
 		if hadCollision:
 			self.arena.removeBullets([self])
-		else:
-			self.arena.redraw()
+		
+		self.arena.redraw()
 		
 		return hadCollision
 	
@@ -98,7 +94,10 @@ class Bullet:
 				# we hit robot r
 				r.health -= self.damage
 				
-				self.arena.env.addstr(0, 0, str(r.health))
+				# we killed the robot
+				if r.health <= 0:
+					self.arena.killRobots([r])
+				
 				return True
 		
 		return False
@@ -123,7 +122,7 @@ class Robot:
 		self.location = Point()
 		self.instructions = []
 		self.direction = "up"
-		self.health = 100
+		self.health = 3
 	
 	
 	def __cmp__(self, other):
@@ -131,7 +130,20 @@ class Robot:
 	
 	
 	def draw(self):
-		self.arena.env.addstr(self.location.y, self.location.x, self.displayString())
+		redLevel = 1
+		yellowLevel = 2
+		greenLevel = 3
+		
+		if self.health <= redLevel:
+			color = Arena.COLOR_PAIR_RED
+		elif self.health <= yellowLevel:
+			color = Arena.COLOR_PAIR_YELLOW
+		elif self.health <= greenLevel:
+			color = Arena.COLOR_PAIR_GREEN
+		else:
+			color = 0
+		
+		self.arena.drawString(self.location.x, self.location.y, self.displayString(), color)
 	
 	
 	def runInstructions(self):
@@ -221,16 +233,30 @@ class Robot:
 
 
 class Arena:
+	# static
+	COLOR_PAIR_RED = 1
+	COLOR_PAIR_YELLOW = 2
+	COLOR_PAIR_GREEN = 3
+	
+	# instance
 	robots = None
 	bullets = None
 	dimensions = None
+	upperLeft = None
 	env = None
 	
-	def __init__(self, xDimension, yDimension, env = None):
+	def __init__(self, env):
+		# instance
 		self.robots = []
 		self.bullets = []
-		self.dimensions = Point(xDimension, yDimension)
 		self.env = env
+		self.upperLeft = Point(0, 0)
+		self.resize()
+	
+	
+	def resize(self):
+		(y, x) = self.env.getmaxyx()
+		self.dimensions = Point(x, y)
 	
 	
 	def redraw(self):
@@ -247,6 +273,11 @@ class Arena:
 					b.draw()
 		
 	
+	def drawString(self, x, y, s, color = 0):
+		try:
+			self.env.addstr(self.upperLeft.y + y, self.upperLeft.x + x, s, curses.color_pair(color))
+		except:
+			pass
 	
 	
 	def fire(self, bullet):
@@ -267,6 +298,13 @@ class Arena:
 	def removeBullets(self, bullets):
 		for b in bullets:
 			self.bullets.remove(b)
+	
+	
+	def killRobots(self, robots):
+		# TODO: crossover / mutate, add new robots
+		
+		# remove the dead robots
+		self.removeRobots(robots)
 	
 	
 	def addRobots(self, robots):
@@ -297,8 +335,11 @@ class Arena:
 
 
 def runGA(env):
+	# initialize curses colors
+	initColors()
+	
 	populationLimit = 6
-	maxTime = 10
+	maxTime = 20
 	maxInstructions = 5
 	possibleInstructions = ["forward", "reverse", "spin_left", "spin_right", "fire"]
 	
@@ -306,7 +347,7 @@ def runGA(env):
 	population = initPopulation(possibleInstructions, maxInstructions, populationLimit)
 	
 	# add robots to the arena
-	arena = Arena(50, 20, env)
+	arena = Arena(env)
 	arena.addRobots(population)
 	
 	# when one dies, crossover/mutate, add new to pop, remove old
@@ -365,6 +406,12 @@ def nextPosition(location, direction, amount = 1):
 		newLocation.x += delta
 	
 	return newLocation
+
+
+def initColors():
+	curses.init_pair(1, curses.COLOR_RED, curses.COLOR_BLACK)
+	curses.init_pair(2, curses.COLOR_YELLOW, curses.COLOR_BLACK)
+	curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK)
 
 
 def main():

@@ -380,12 +380,12 @@ def initPopulation(possibleInsructions, maxInstructions, populationLimit):
 	
 	population = [r1, r2]
 	
-	# for i in range(populationLimit):
-	# 	robot = Robot()
-	# 	robot.instructions = [random.choice(possibleInsructions) for i in range(maxInstructions)]
-	# 	
-	# 	population += [robot]
-	
+	for i in range(populationLimit):
+		robot = Robot()
+	 	robot.instructions = [random.choice(possibleInsructions) for i in range(maxInstructions)]
+	 	
+	 	population += [robot]
+		
 	return population
 
 
@@ -422,8 +422,8 @@ def crossover(robota, robotb):
 
 	newrobo = Robot()
 	newrobo.instructions = newinstr
-	newrobo.location.x = 
-	newrobo.location.y = 
+	newrobo.location.x = 0
+	newrobo.location.y = 0
 
 	return newrobo
 
@@ -433,7 +433,8 @@ def mutate(robota):
 	newrobo.instructions = robota.instructions
 	newrobo.instructions[random.randrange(0, len(newrobo.instructions))] = random.choice(possibleInstructions)
 
-	newrobo.location = robota.location
+	newrobo.location.x = 0
+	newrobo.location.y = 0
 
 	return newrobo
 

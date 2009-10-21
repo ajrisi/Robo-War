@@ -115,6 +115,30 @@ Phenotype and Genotype Definition and Translation/Checkpoint 3:
 		lost robot. The simulation itself executes each robots
 		instructions, and calculates kills and life times.
 
+
+	Fitness / Checkpoint 4
+		
+		In this project, the battle statistics of a robot are evaluated to determine the fitness of the robot.
+		
+		The fitness for a robot is determined by a live simulated robot battle.  The entire population is on the battle field at the beginning, and the battle is every robot for itself.  When a robot dies in this simulation, we remove it from the battle, and we replace it with a new robot formed by doing crossover and mutation.  We can judge the fitness of a robot by the statistics collected during the battle for each robot.  For example a high kill count, a long lifespan, and a high accuracy rating all contribute to a good fitness score.  We are not applying any scaling or penalties other than to weight the different battle statistics so that, for example, lifespan matters more than accuracy.
+		
+		We currently have the simulation working and almost entirely completed, but as of yet we do not collect sufficient battle statistics to accurately determine the fitness of each robot.  At this point, we simply use the lifespan as the fitness, by removing robots that die from the arena so as to encourage those who can survive longer.  We will record full battle statistics soon.
+	
+	Generation 0
+		
+		We initialize robots with a random instruction set (genomes) drawn from a list of possible instructions and limited to a fixed length.
+		
+	Bad Mojo
+	
+		We handle bad genotypes by simply never creating them.  Our genotype is a list of robot instructions, and any order is valid.  Therefore when we create a robot, we pick instructions from a list of legal instructions, and we limit the list to a certain length.  This way we only ever have legal robots, and when legal robots crossover and mutate they will produce more legal robots.
+	
+	Statistics
+	
+		Because our simulation is so complex, we are not able to record the desired statistics yet.  Also, since the simulation is what gives life to the robot's instructions, recording the best fit, worst fit, and average fit individual not very meaningful, because it will appear in every case as a random list of instructions, and will only make sense by watching the robot in action.  Eventually, we want to showcase best and worse individuals by dueling them in the battle arena.
+		
+		
+
+
 	Building:
 		
 		This program does not need to be built - simply run

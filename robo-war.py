@@ -413,6 +413,29 @@ def initColors():
 	curses.init_pair(2, curses.COLOR_YELLOW, curses.COLOR_BLACK)
 	curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK)
 
+def crossover(robota, robotb):
+	#crossover the robots instruction arrays at their midpoint
+	lena = len(robota.instructions)
+	lenb = len(robotb.instructions)
+	newinstr = robota.instructions[:lena/2]
+	newinstr += robotb.instructions[lenb/2:]
+
+	newrobo = Robot()
+	newrobo.instructions = newinstr
+	newrobo.location.x = 
+	newrobo.location.y = 
+
+	return newrobo
+
+def mutate(robota):
+	# randomly replace one instruction with another
+	newrobo = Robot()
+	newrobo.instructions = robota.instructions
+	newrobo.instructions[random.randrange(0, len(newrobo.instructions))] = random.choice(possibleInstructions)
+
+	newrobo.location = robota.location
+
+	return newrobo
 
 def main():
 	curses.wrapper(runGA)

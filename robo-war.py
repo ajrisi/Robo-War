@@ -337,7 +337,8 @@ class Arena:
 def runGA(env):
 	# initialize curses colors
 	initColors()
-	
+	curses.curs_set(0)
+
 	populationLimit = 6
 	maxTime = 20
 	maxInstructions = 5

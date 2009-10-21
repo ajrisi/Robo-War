@@ -58,7 +58,7 @@ class Bullet:
 	
 	
 	def go(self):
-		while not self.advance(): time.sleep(.05)
+		while not self.advance(): time.sleep(.01)
 	
 	
 	def advance(self):
@@ -87,7 +87,7 @@ class Bullet:
 			return True
 		elif self.location.y < 0:
 			return True
-		
+
 		# check for robot hit
 		for r in self.arena.robots:
 			if r.location.x == self.location.x and r.location.y == self.location.y:
@@ -160,7 +160,7 @@ class Robot:
 		
 		action[x]()
 		self.arena.redraw()
-		time.sleep(.5)
+		time.sleep(.05)
 	
 	
 	def displayString(self):
@@ -224,6 +224,9 @@ class Robot:
 		
 		newX = self.location.x + deltaX
 		newY = self.location.y + deltaY
+
+		newY = newY + self.arena.dimensions.y % self.arena.dimensions.y
+		newX = newX + self.arena.dimensions.x % self.arena.dimensions.x
 		
 		# if no collision (legal move)
 		if 0 == self.arena.checkCollision(Point(newX, newY), self):
@@ -327,9 +330,6 @@ class Arena:
 			if robotToTest.robotId != r.robotId and point.x == r.location.x and point.y == r.location.y:
 				# print "robot id %s collided with robot id %s. Locations (%s, %s) (%s, %s)" % (robotToTest.robotId, r.robotId, robotToTest.location.x, robotToTest.location.y, r.location.x, r.location.y)
 				return 1
-			if point.x > self.dimensions.x or point.y > self.dimensions.y or point.x < 0 or point.y < 0:
-				# print "robot id %s hit the wall." % robotToTest.robotId
-				return 1
 		
 		return 0
 
@@ -342,12 +342,14 @@ def runGA(env):
 	maxTime = 20
 	maxInstructions = 5
 	possibleInstructions = ["forward", "reverse", "spin_left", "spin_right", "fire"]
+
+	# create the arena 
+	arena = Arena(env)
 	
 	# create the initial population
-	population = initPopulation(possibleInstructions, maxInstructions, populationLimit)
+	population = initPopulation(arena, possibleInstructions, maxInstructions, populationLimit)
 	
-	# add robots to the arena
-	arena = Arena(env)
+	#add robots to the arena
 	arena.addRobots(population)
 	
 	# when one dies, crossover/mutate, add new to pop, remove old
@@ -365,24 +367,14 @@ def runGA(env):
 		
 
 
-def initPopulation(possibleInsructions, maxInstructions, populationLimit):
+def initPopulation(arena, possibleInsructions, maxInstructions, populationLimit):
 	population = []
-	
-	r1 = Robot()
-	r1.instructions = ["forward", "forward", "forward", "fire", "spin_right"]
-	r1.location.x = 10
-	r1.location.y = 10
-	
-	r2 = Robot()
-	r2.instructions = ["forward", "forward", "forward", "fire", "spin_left"]
-	r2.location.x = 20
-	r2.location.y = 10
-	
-	population = [r1, r2]
-	
+
 	for i in range(populationLimit):
 		robot = Robot()
 	 	robot.instructions = [random.choice(possibleInsructions) for i in range(maxInstructions)]
+		robot.location.x = random.randrange(0, arena.dimensions.x)
+		robot.location.y = random.randrange(0, arena.dimensions.y)
 	 	
 	 	population += [robot]
 		

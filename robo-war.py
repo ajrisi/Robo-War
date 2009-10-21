@@ -58,7 +58,7 @@ class Bullet:
 	
 	
 	def go(self):
-		while not self.advance(): time.sleep(.01)
+		while not self.advance(): time.sleep(.0)
 	
 	
 	def advance(self):
@@ -160,7 +160,7 @@ class Robot:
 		
 		action[x]()
 		self.arena.redraw()
-		time.sleep(.05)
+		time.sleep(.0)
 	
 	
 	def displayString(self):
@@ -304,10 +304,20 @@ class Arena:
 	
 	
 	def killRobots(self, robots):
-		# TODO: crossover / mutate, add new robots
-		
 		# remove the dead robots
 		self.removeRobots(robots)
+
+		for r in robots:
+			newrobo = crossover(random.choice(self.robots), random.choice(self.robots))
+			newrobo.location.x = r.location.x
+			newrobo.location.y = r.location.y
+
+			# mutate randomly (.05 alpha)
+			if random.uniform(0, 1) <= .25:
+				mutate(newrobo)
+
+			self.addRobots([newrobo])
+
 	
 	
 	def addRobots(self, robots):
@@ -339,9 +349,11 @@ def runGA(env):
 	initColors()
 	curses.curs_set(0)
 
-	populationLimit = 6
-	maxTime = 20
-	maxInstructions = 5
+	global possibleInstructions
+
+	populationLimit = 50
+	maxTime = 2000
+	maxInstructions = 20
 	possibleInstructions = ["forward", "reverse", "spin_left", "spin_right", "fire"]
 
 	# create the arena 
@@ -426,8 +438,7 @@ def mutate(robota):
 	newrobo.instructions = robota.instructions
 	newrobo.instructions[random.randrange(0, len(newrobo.instructions))] = random.choice(possibleInstructions)
 
-	newrobo.location.x = 0
-	newrobo.location.y = 0
+	newrobo.location = robota.location
 
 	return newrobo
 

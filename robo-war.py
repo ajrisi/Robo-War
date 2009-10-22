@@ -53,6 +53,7 @@ class Bullet:
 	def __cmp__(self, other):
 		return cmp(self.bulletId, other.bulletId)
 	
+	
 	def draw(self):
 		self.arena.drawString(self.location.x, self.location.y, ".")
 	
@@ -87,7 +88,7 @@ class Bullet:
 			return True
 		elif self.location.y < 0:
 			return True
-
+		
 		# check for robot hit
 		for r in self.arena.robots:
 			if r.location.x == self.location.x and r.location.y == self.location.y:
@@ -174,7 +175,7 @@ class Robot:
 			display = "<"
 		else: # right
 			display = ">"
-	
+		
 		return display
 	
 	
@@ -276,7 +277,7 @@ class Arena:
 		
 		for b in self.bullets:
 					b.draw()
-		
+	
 	
 	def drawString(self, x, y, s, color = 0):
 		try:
@@ -308,18 +309,18 @@ class Arena:
 	def killRobots(self, robots):
 		# remove the dead robots
 		self.removeRobots(robots)
-
+		
 		for r in robots:
 			newrobo = crossover(random.choice(self.robots), random.choice(self.robots))
 			newrobo.location.x = r.location.x
 			newrobo.location.y = r.location.y
-
+			
 			# mutate randomly (.05 alpha)
 			if random.uniform(0, 1) <= .25:
 				mutate(newrobo)
-
+			
 			self.addRobots([newrobo])
-
+	
 	
 	
 	def addRobots(self, robots):
@@ -344,27 +345,31 @@ class Arena:
 				return 1
 		
 		return 0
+	
 
 
 def runGA(env):
 	# initialize curses colors
 	initColors()
-	curses.curs_set(0)
-
+	try:
+		curses.curs_set(0)
+	except:
+		pass
+	
 	global possibleInstructions
-
+	
 	populationLimit = 50
 	maxTime = 2000
 	maxInstructions = 20
 	possibleInstructions = ["forward", "reverse", "spin_left", "spin_right", "fire"]
-
+	
 	# create the arena 
 	arena = Arena(env)
 	
 	# create the initial population
 	population = initPopulation(arena, possibleInstructions, maxInstructions, populationLimit)
 	
-	#add robots to the arena
+	# add robots to the arena
 	arena.addRobots(population)
 	
 	# when one dies, crossover/mutate, add new to pop, remove old
@@ -382,11 +387,9 @@ def runGA(env):
 		# for each killed, crossover/mutate, add new, remove old
 
 
-
-
 def initPopulation(arena, possibleInsructions, maxInstructions, populationLimit):
 	population = []
-
+	
 	for i in range(populationLimit):
 		robot = Robot()
 	 	robot.instructions = [random.choice(possibleInsructions) for i in range(maxInstructions)]
@@ -394,7 +397,7 @@ def initPopulation(arena, possibleInsructions, maxInstructions, populationLimit)
 		robot.location.y = random.randrange(0, arena.dimensions.y)
 	 	
 	 	population += [robot]
-		
+	
 	return population
 
 
@@ -422,29 +425,32 @@ def initColors():
 	curses.init_pair(2, curses.COLOR_YELLOW, curses.COLOR_BLACK)
 	curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK)
 
+
 def crossover(robota, robotb):
 	#crossover the robots instruction arrays at their midpoint
 	lena = len(robota.instructions)
 	lenb = len(robotb.instructions)
 	newinstr = robota.instructions[:lena/2]
 	newinstr += robotb.instructions[lenb/2:]
-
+	
 	newrobo = Robot()
 	newrobo.instructions = newinstr
 	newrobo.location.x = 0
 	newrobo.location.y = 0
-
+	
 	return newrobo
+
 
 def mutate(robota):
 	# randomly replace one instruction with another
 	newrobo = Robot()
 	newrobo.instructions = robota.instructions
 	newrobo.instructions[random.randrange(0, len(newrobo.instructions))] = random.choice(possibleInstructions)
-
+	
 	newrobo.location = robota.location
-
+	
 	return newrobo
+
 
 def main():
 	curses.wrapper(runGA)

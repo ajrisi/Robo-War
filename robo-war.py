@@ -72,7 +72,7 @@ class Bullet:
 		if hadCollision:
 			self.arena.removeBullets([self])
 		
-		self.arena.redraw()
+		# self.arena.redraw()
 		
 		return hadCollision
 	
@@ -149,7 +149,9 @@ class Robot:
 	def runInstructions(self):
 		for x in self.instructions:
 			self.runInstruction(x)
-	
+
+	def runInstruction_n(self, n):
+		self.runInstruction(self.instructions[n])
 	
 	def runInstruction(self, x):
 		action = {  "forward":    self.moveForward, 
@@ -159,7 +161,7 @@ class Robot:
 					"fire":       self.fire }
 		
 		action[x]()
-		self.arena.redraw()
+		# self.arena.redraw()
 		time.sleep(.0)
 	
 	
@@ -225,8 +227,8 @@ class Robot:
 		newX = self.location.x + deltaX
 		newY = self.location.y + deltaY
 
-		newY = newY + self.arena.dimensions.y % self.arena.dimensions.y
-		newX = newX + self.arena.dimensions.x % self.arena.dimensions.x
+		newY = (newY + self.arena.dimensions.y) % self.arena.dimensions.y
+		newX = (newX + self.arena.dimensions.x) % self.arena.dimensions.x
 		
 		# if no collision (legal move)
 		if 0 == self.arena.checkCollision(Point(newX, newY), self):
@@ -373,11 +375,13 @@ def runGA(env):
 	
 	for timeSlice in range(1, maxTime):
 		# run robots
-		for robot in arena.robots:
-			robot.runInstructions()
-		
+		for i in range(0, maxInstructions):
+			for robot in arena.robots:
+				robot.runInstruction_n(i)
+			arena.redraw()		
 		# for each killed, crossover/mutate, add new, remove old
-		
+
+
 
 
 def initPopulation(arena, possibleInsructions, maxInstructions, populationLimit):

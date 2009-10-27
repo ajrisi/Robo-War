@@ -315,18 +315,19 @@ class Arena:
 	def killRobots(self, robots):
 		# remove the dead robots
 		self.removeRobots(robots)
-		
+
 		for r in robots:
 			#record the now-dead robot
 			try:
 				self.repo.index(r)
 			except:
-				self.repo.append(r)
-				
-		del self.repo[20:]
-		self.repo.sort(cmp=lambda a, b: cmp(a.lifetime, b.lifetime))
+				r.arena = self
+				self.repo += [r]
+
+		self.repo.sort(cmp=lambda a, b: cmp(b.lifetime, a.lifetime))		
+		del self.repo[10:]
 		for r in robots:
-			newrobo = crossover(random.choice(self.robots), random.choice(self.robots))
+			newrobo = crossover(random.choice(self.repo), random.choice(self.repo))
 			newrobo.location.x = r.location.x
 			newrobo.location.y = r.location.y
 			
@@ -346,7 +347,7 @@ class Arena:
 			except:
 				r.arena = self
 				self.robots += [r]
-	
+
 	
 	def removeRobots(self, robots):
 		for r in robots:
@@ -378,6 +379,8 @@ def runGA(env):
 	maxInstructions = 200
 	possibleInstructions = ["forward", "reverse", "spin_left", "spin_right", "fire"]
 	
+	statfile = open("stats", "w");
+
 	# create the arena 
 	arena = Arena(env)
 	
@@ -401,10 +404,17 @@ def runGA(env):
 			arena.redraw()		
 		#now, calculate the average lifetime for the "best" of the dead
 		avglife = 0
+		maxlife = 0
 		for r in arena.repo:
 			avglife += r.lifetime
-		avglife = avglife / (len(arena.repo)+1)
-		env.addstr(0, 0, str(avglife), arena.COLOR_PAIR_GREEN)
+			statfile.write(str(r.lifetime) + " ")
+			if r.lifetime > maxlife:
+				maxlife = r.lifetime
+		# avglife = avglife / (len(arena.repo)+1)
+		statfile.write(":: " + str(timeSlice) + " " + str(avglife) + " " + str(len(arena.repo)) + "\n");
+		statfile.flush()
+
+	statfile.close()
 
 
 def initPopulation(arena, possibleInsructions, maxInstructions, populationLimit):

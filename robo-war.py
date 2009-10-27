@@ -115,6 +115,7 @@ class Robot:
 	health = None
 	robotId = None
 	arena = None
+	lifetime = None
 	
 	def __init__(self):
 		self.robotId = Robot.staticIdCounter
@@ -124,6 +125,7 @@ class Robot:
 		self.instructions = []
 		self.direction = "up"
 		self.health = 3
+		self.lifetime = 0
 	
 	
 	def __cmp__(self, other):
@@ -162,6 +164,8 @@ class Robot:
 					"fire":       self.fire }
 		
 		action[x]()
+		if self.health > 0:
+			self.lifetime += 1
 		# self.arena.redraw()
 		time.sleep(.0)
 	
@@ -250,11 +254,13 @@ class Arena:
 	dimensions = None
 	upperLeft = None
 	env = None
+	repo = None
 	
 	def __init__(self, env):
 		# instance
 		self.robots = []
 		self.bullets = []
+		self.repo = []
 		self.env = env
 		self.upperLeft = Point(0, 0)
 		self.resize()
@@ -311,11 +317,20 @@ class Arena:
 		self.removeRobots(robots)
 		
 		for r in robots:
+			#record the now-dead robot
+			try:
+				self.repo.index(r)
+			except:
+				self.repo.append(r)
+				
+		del self.repo[20:]
+		self.repo.sort(cmp=lambda a, b: cmp(a.lifetime, b.lifetime))
+		for r in robots:
 			newrobo = crossover(random.choice(self.robots), random.choice(self.robots))
 			newrobo.location.x = r.location.x
 			newrobo.location.y = r.location.y
 			
-			# mutate randomly (.05 alpha)
+			# mutate randomly (.25 alpha)
 			if random.uniform(0, 1) <= .25:
 				mutate(newrobo)
 			
@@ -358,9 +373,9 @@ def runGA(env):
 	
 	global possibleInstructions
 	
-	populationLimit = 50
-	maxTime = 2000
-	maxInstructions = 20
+	populationLimit = 20
+	maxTime = 2000000
+	maxInstructions = 200
 	possibleInstructions = ["forward", "reverse", "spin_left", "spin_right", "fire"]
 	
 	# create the arena 
@@ -368,7 +383,7 @@ def runGA(env):
 	
 	# create the initial population
 	population = initPopulation(arena, possibleInstructions, maxInstructions, populationLimit)
-	
+
 	# add robots to the arena
 	arena.addRobots(population)
 	
@@ -384,7 +399,12 @@ def runGA(env):
 			for robot in arena.robots:
 				robot.runInstruction_n(i)
 			arena.redraw()		
-		# for each killed, crossover/mutate, add new, remove old
+		#now, calculate the average lifetime for the "best" of the dead
+		avglife = 0
+		for r in arena.repo:
+			avglife += r.lifetime
+		avglife = avglife / (len(arena.repo)+1)
+		env.addstr(0, 0, str(avglife), arena.COLOR_PAIR_GREEN)
 
 
 def initPopulation(arena, possibleInsructions, maxInstructions, populationLimit):

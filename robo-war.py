@@ -164,9 +164,9 @@ class Robot:
 					"fire":       self.fire }
 		
 		action[x]()
-		if self.health > 0:
-			self.lifetime += 1
-		# self.arena.redraw()
+		#if self.health > 0:
+		#	self.lifetime += 1
+		#self.arena.redraw()
 		time.sleep(.0)
 	
 	
@@ -323,9 +323,10 @@ class Arena:
 			except:
 				r.arena = self
 				self.repo += [r]
-
-		self.repo.sort(cmp=lambda a, b: cmp(b.lifetime, a.lifetime))		
-		del self.repo[10:]
+				
+		self.repo.extend(self.robots)
+		self.repo.sort(cmp=lambda a, b: cmp(b.lifetime, a.lifetime))
+		del self.repo[populationLimit:]
 		for r in robots:
 			newrobo = crossover(random.choice(self.repo), random.choice(self.repo))
 			newrobo.location.x = r.location.x
@@ -373,13 +374,20 @@ def runGA(env):
 		pass
 	
 	global possibleInstructions
+	global populationLimit
 	
 	populationLimit = 20
 	maxTime = 2000000
-	maxInstructions = 200
+	maxInstructions = 10
 	possibleInstructions = ["forward", "reverse", "spin_left", "spin_right", "fire"]
 	
 	statfile = open("stats", "w");
+	gnuplot = os.popen("gnuplot -persist", "w")
+
+	#init gnuplot
+	gnuplot.write("set terminal x11\n")
+	gnuplot.write("set title \"Time Slice vs Best Robot\"\n")
+	gnuplot.write("plot \'stats\' with lines\n")
 
 	# create the arena 
 	arena = Arena(env)
@@ -401,20 +409,23 @@ def runGA(env):
 		for i in range(0, maxInstructions):
 			for robot in arena.robots:
 				robot.runInstruction_n(i)
-			arena.redraw()		
+			arena.redraw()
+			
+		for r in arena.robots:
+			r.lifetime += 1
+
 		#now, calculate the average lifetime for the "best" of the dead
-		avglife = 0
 		maxlife = 0
 		for r in arena.repo:
-			avglife += r.lifetime
-			statfile.write(str(r.lifetime) + " ")
 			if r.lifetime > maxlife:
 				maxlife = r.lifetime
-		# avglife = avglife / (len(arena.repo)+1)
-		statfile.write(":: " + str(timeSlice) + " " + str(avglife) + " " + str(len(arena.repo)) + "\n");
+		statfile.write(str(timeSlice) + " " + str(maxlife) + "\n")
 		statfile.flush()
+		gnuplot.write("replot\n")
+		gnuplot.flush()
 
 	statfile.close()
+	gnuplot.close()
 
 
 def initPopulation(arena, possibleInsructions, maxInstructions, populationLimit):
@@ -478,6 +489,7 @@ def mutate(robota):
 	newrobo.instructions[random.randrange(0, len(newrobo.instructions))] = random.choice(possibleInstructions)
 	
 	newrobo.location = robota.location
+	
 	
 	return newrobo
 

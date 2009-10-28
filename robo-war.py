@@ -40,6 +40,7 @@ class Bullet:
 	direction = None
 	damage = None
 	arena = None
+	fromRobot = None
 	
 	def __init__(self, location = Point(), direction = "up", damage = 1):
 		self.bulletId = Bullet.staticIdCounter
@@ -94,14 +95,18 @@ class Bullet:
 			if r.location.x == self.location.x and r.location.y == self.location.y:
 				# we hit robot r
 				r.health -= self.damage
+				r.statistics["hitsTaken"] += 1
+				self.fromRobot.statistics["hitsGiven"] += 1
 				
 				# we killed the robot
 				if r.health <= 0:
+					self.fromRobot.statistics["kills"] += 1
 					self.arena.killRobots([r])
 				
 				return True
 		
 		return False
+	
 
 
 class Robot:
@@ -115,7 +120,7 @@ class Robot:
 	health = None
 	robotId = None
 	arena = None
-	lifetime = None
+	statistics = None
 	
 	def __init__(self):
 		self.robotId = Robot.staticIdCounter
@@ -125,7 +130,12 @@ class Robot:
 		self.instructions = []
 		self.direction = "up"
 		self.health = 3
-		self.lifetime = 0
+		self.statistics = {"lifetime":         0,
+						   "shotsFired":       0,
+						   "hitsGiven":        0,
+						   "hitsTaken":        0,
+						   "kills":            0,
+						   "distanceTraveled": 0}
 	
 	
 	def __cmp__(self, other):
@@ -152,7 +162,7 @@ class Robot:
 	def runInstructions(self):
 		for x in self.instructions:
 			self.runInstruction(x)
-
+	
 	def runInstruction_n(self, n):
 		self.runInstruction(self.instructions[n])
 	
@@ -164,9 +174,6 @@ class Robot:
 					"fire":       self.fire }
 		
 		action[x]()
-		#if self.health > 0:
-		#	self.lifetime += 1
-		#self.arena.redraw()
 		time.sleep(.0)
 	
 	
@@ -184,10 +191,13 @@ class Robot:
 	
 	
 	def fire(self):
+		self.statistics["shotsFired"] += 1
+		
 		bulletDirection = self.direction
 		bulletLocation = nextPosition(self.location, bulletDirection)
 		
 		bullet = Bullet(bulletLocation, bulletDirection)
+		bullet.fromRobot = self
 		self.arena.fire(bullet)
 	
 	
@@ -217,6 +227,8 @@ class Robot:
 	
 	# direction should be -1/1 for reverse/forward respectively
 	def move(self, direction):
+		self.statistics["distanceTraveled"] += 1
+		
 		deltaX = 0
 		deltaY = 0
 		
@@ -231,7 +243,7 @@ class Robot:
 		
 		newX = self.location.x + deltaX
 		newY = self.location.y + deltaY
-
+		
 		newY = (newY + self.arena.dimensions.y) % self.arena.dimensions.y
 		newX = (newX + self.arena.dimensions.x) % self.arena.dimensions.x
 		
@@ -315,7 +327,7 @@ class Arena:
 	def killRobots(self, robots):
 		# remove the dead robots
 		self.removeRobots(robots)
-
+		
 		for r in robots:
 			#record the now-dead robot
 			try:
@@ -325,7 +337,7 @@ class Arena:
 				self.repo += [r]
 				
 		self.repo.extend(self.robots)
-		self.repo.sort(cmp=lambda a, b: cmp(b.lifetime, a.lifetime))
+		self.repo.sort(cmp=lambda a, b: cmp(b.statistics["lifetime"], a.statistics["lifetime"]))
 		del self.repo[populationLimit:]
 		for r in robots:
 			newrobo = crossover(random.choice(self.repo), random.choice(self.repo))
@@ -348,7 +360,7 @@ class Arena:
 			except:
 				r.arena = self
 				self.robots += [r]
-
+	
 	
 	def removeRobots(self, robots):
 		for r in robots:
@@ -382,19 +394,20 @@ def runGA(env):
 	possibleInstructions = ["forward", "reverse", "spin_left", "spin_right", "fire"]
 	
 	statfile = open("stats", "w");
+	verbosefile = open("verbose_statistics", "w")
 	gnuplot = os.popen("gnuplot -persist", "w")
-
+	
 	#init gnuplot
 	gnuplot.write("set terminal x11\n")
 	gnuplot.write("set title \"Time Slice vs Best Robot\"\n")
 	gnuplot.write("plot \'stats\' with lines\n")
-
+	
 	# create the arena 
 	arena = Arena(env)
 	
 	# create the initial population
 	population = initPopulation(arena, possibleInstructions, maxInstructions, populationLimit)
-
+	
 	# add robots to the arena
 	arena.addRobots(population)
 	
@@ -412,21 +425,27 @@ def runGA(env):
 			arena.redraw()
 			
 		for r in arena.robots:
-			r.lifetime += 1
-
+			r.statistics["lifetime"] += 1
+		
 		#now, calculate the average lifetime for the "best" of the dead
 		maxlife = 0
+		bestRobot = None
 		for r in arena.repo:
-			if r.lifetime > maxlife:
-				maxlife = r.lifetime
-		statfile.write(str(timeSlice) + " " + str(maxlife) + "\n")
+			if r.statistics["lifetime"] > maxlife:
+				maxlife = r.statistics["lifetime"]
+				bestRobot = r
+		statfile.write(str(timeSlice) + " " + str(bestRobot.statistics["lifetime"]) + "\n")
 		statfile.flush()
+		
+		verbosefile.write(str(timeSlice) + " " + str(bestRobot.statistics) + "\n")
+		verbosefile.flush()
+		
 		gnuplot.write("replot\n")
 		try:
 			gnuplot.flush()
 		except:
 			pass
-
+	
 	statfile.close()
 	gnuplot.close()
 

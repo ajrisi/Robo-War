@@ -422,7 +422,10 @@ def runGA(env):
 		statfile.write(str(timeSlice) + " " + str(maxlife) + "\n")
 		statfile.flush()
 		gnuplot.write("replot\n")
-		gnuplot.flush()
+		try:
+			gnuplot.flush()
+		except:
+			pass
 
 	statfile.close()
 	gnuplot.close()

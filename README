@@ -116,7 +116,7 @@ Phenotype and Genotype Definition and Translation/Checkpoint 3:
 		instructions, and calculates kills and life times.
 
 
-	Fitness / Checkpoint 4
+Fitness / Checkpoint 4:
 		
 		In this project, the battle statistics of a robot are evaluated to determine the fitness of the robot.
 		
@@ -136,10 +136,22 @@ Phenotype and Genotype Definition and Translation/Checkpoint 3:
 	
 		Because our simulation is so complex, we are not able to record the desired statistics yet.  Also, since the simulation is what gives life to the robot's instructions, recording the best fit, worst fit, and average fit individual not very meaningful, because it will appear in every case as a random list of instructions, and will only make sense by watching the robot in action.  Eventually, we want to showcase best and worse individuals by dueling them in the battle arena.
 		
-		
+	
+Reproduction, Selection / Checkpoint 5:
+	
+	We now keep track of each robot's lifetime, which is the number of time slices that it has been alive in the arena.  Therefore we can select only the best robots (longest lifetime) for reproduction and selection.  We also keep statistics about the best robot (longest lifetime) and we write the time slice and the lifespan of the best robot into the file "stats" at every time slice.  Therefore we can see how our robots are evolving to become better and better.  We also graph this relation in realtime (assuming gnuplot is installed) so we can see it progressing more clearly.
+	
+	We've included a graph, and a stats file for a sample run in this submission.
+	
+	Our selection scheme is overlapping.  We do selection and reproduction whenever a robot dies, so the crossover rate is tied to the death rate.  We mutate 1/4 of the time.  When a robot dies, we produce one to replace it by sorting our population based on lifetime and clamping it at the population limit so that we get only the best robots.  We then pick two random parents from that set of robots and perform crossover.  Therefore we do a modified survival selection.
+	
+	This selection and reproduction scheme seems to work very well.  You can see from the stats file and the graph that robot lifespan increases throughout the generations.  As the robots evolve, they become more effective killers and survivors and it is evident that we start to converge on a solution after around 2000 time slices.
+	
 
 
 	Building:
+	
+		Note: to see graphs of fitness over time you need to install gnuplot and make sure it is on your path (i.e. you can run "gnuplot" from the terminal).  For linux you can get it from your distro repository, and for mac you need to install MacPorts and then run "sudo port install gnuplot".
 		
 		This program does not need to be built - simply run
 		robo-war.py and the simulator will begin. While the

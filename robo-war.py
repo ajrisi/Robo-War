@@ -376,9 +376,9 @@ def runGA(env):
 	global possibleInstructions
 	global populationLimit
 	
-	populationLimit = 20
-	maxTime = 2000000
-	maxInstructions = 10
+	populationLimit = 10
+	maxTime = 2000
+	maxInstructions = 50
 	possibleInstructions = ["forward", "reverse", "spin_left", "spin_right", "fire"]
 	
 	statfile = open("stats", "w");

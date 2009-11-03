@@ -377,7 +377,7 @@ class Arena:
 	
 
 
-def runGA(env):
+def runGA(env, parameters):
 	# initialize curses colors
 	initColors()
 	try:
@@ -517,7 +517,15 @@ def mutate(robota):
 
 
 def main():
-	curses.wrapper(runGA)
+	parameters = {"speed"				: "fast",
+				  "arenaSize"			: (100, 50),
+				  "crossover"			: .5,
+				  "mutation"			: .25,
+				  "selectionMethod"		: 1,
+				  "populationLimit"		: 100,
+				  "stopAt"				: 2000}
+	
+	curses.wrapper(runGA, parameters)
 
 
 if __name__ == '__main__':

@@ -425,6 +425,7 @@ class Environment:
 	maxInstructions = None
 	
 	shouldPlot = None
+	shouldLog = None
 	
 	def __init__(self, screen):
 		# instance
@@ -443,6 +444,7 @@ class Environment:
 		self.maxInstructions = 50
 		
 		self.shouldPlot = False
+		self.shouldLog = False
 	
 
 
@@ -486,8 +488,8 @@ def runGA(env):
 		allRobots = arena.robots + arena.bestDeadRobots
 		allRobots.sort(reverse=True)
 		
-		logSlice(env, logs, timeSlice, allRobots)
-		plotSlice(env, plot, timeSlice, allRobots)
+		logSlice(env, logs, timeSlice, arena.robots, arena.bestDeadRobots)
+		plotSlice(env, plot, timeSlice, arena.robots, arena.bestDeadRobots)
 		
 		# check for convergence
 		if env.stoppingCondition is "convergence":
@@ -557,6 +559,9 @@ def initCurses():
 
 
 def initLogs(env):
+	if not env.shouldLog:
+		return
+	
 	verboseFile = open("verbose_statistics", "w")
 	
 	return verboseFile
@@ -568,36 +573,49 @@ def initPlot(env):
 	
 	# initialize stats file	
 	statfile = open("stats", "w");
-	statfile.write("0 0\n")
+	statfile.write("0 0 0 0 0\n")
 	statfile.flush()
 	
 	gnuplot = os.popen("gnuplot -persist", "w")
 	
 	# initialize gnuplot
 	gnuplot.write("set terminal x11\n")
-	gnuplot.write("set title \"Time Slice vs Best Robot\"\n")
-	gnuplot.write("plot \'stats\' with lines\n")
+	gnuplot.write("set title \"Generation vs Fitness\"\n")
+	gnuplot.write("plot 'stats' using 1:2 title 'Overall Best' with lines, 'stats' using 1:3 title 'Best' with lines, 'stats' using 1:4 title 'Average' with lines, 'stats' using 1:5 title 'Worst' with lines\n")
 	
 	return (statfile, gnuplot)
 
 
-def logSlice(env, logs, timeSlice, allRobots):
+def logSlice(env, logs, timeSlice, aliveRobots, deadRobots):
+	if not env.shouldLog:
+		return
+	
 	verboseFile = logs
+	allRobots = aliveRobots + deadRobots
+	allRobots.sort(reverse=True)
 	
 	if len(allRobots) > 0:
-		verboseFile.write(str(timeSlice) + " " + str(allRobots[0].statistics) + "\n")
+		verboseFile.write("time         : " + str(timeSlice) + "\nstatistics   : " + str(allRobots[0].statistics) + "\ninstructions : " + str(allRobots[0].instructions) + "\n\n")
 		verboseFile.flush()
 	
 
 	
-def plotSlice(env, plot, timeSlice, allRobots):
+def plotSlice(env, plot, timeSlice, aliveRobots, deadRobots):
 	if not env.shouldPlot:
 		return
 	
 	(statFile, gnuplot) = plot
+	allRobots = aliveRobots + deadRobots
+	allRobots.sort(reverse=True)
+	aliveRobots.sort(reverse=True)
 	
-	if len(allRobots) > 0:
-		statFile.write(str(timeSlice) + " " + str(allRobots[0].statistics["lifetime"]) + "\n")
+	if len(allRobots) > 0 and len(aliveRobots) > 0:
+		overallBest = allRobots[0].fitness()
+		best = aliveRobots[0].fitness()
+		average = float(sum(x.fitness() for x in aliveRobots)) / float(len(aliveRobots))
+		worst = aliveRobots[-1].fitness()
+		
+		statFile.write(str(timeSlice) + " " + str(overallBest) + " " + str(best) + " " + str(average) + " " + str(worst) + "\n")
 		statFile.flush()
 		
 		gnuplot.write("replot\n")
@@ -609,6 +627,9 @@ def plotSlice(env, plot, timeSlice, allRobots):
 
 
 def closeLogs(env, logs):
+	if not shouldLog:
+		return
+	
 	verboseFile = logs
 	
 	verboseFile.close()
@@ -680,12 +701,6 @@ def cursesMain(screen):
 	# initialize environment
 	env = Environment(screen)
 	
-	# speed can be:
-	#   slow - everything visible and slowed for perception including bullets
-	#   medium - robots easily visible and very fast bullets
-	#   fast - very fast robots and no bullets
-	#   fastest - nothing visible (only logs and maybe plot)
-	
 	env.speed 					= "fastest"
 	env.mutationRate 			= .25
 	env.amountToSelect 			= 10
@@ -698,13 +713,11 @@ def cursesMain(screen):
 	env.possibleInstructions 	= ["forward", "reverse", "spin_left", "spin_right", "fire"]
 	env.maxInstructions 		= 50
 	
-	env.shouldPlot 				= True
+	env.shouldPlot 				= False
+	env.shouldLog 				= False
 	
 	runGA(env)
 	
-	# TODO:
-	#  - settings file / commandline parameters
-	#  - graph best, average, and worst per generation (time slice)
 
 
 def main():

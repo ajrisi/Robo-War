@@ -60,7 +60,7 @@ class Bullet:
 	
 	
 	def go(self):
-		while not self.advance(): time.sleep(.0)
+		while not self.advance(): time.sleep(0)
 	
 	
 	def advance(self):
@@ -138,8 +138,47 @@ class Robot:
 						   "distanceTraveled": 0}
 	
 	
-	def __cmp__(self, other):
-		return cmp(self.robotId, other.robotId)
+	def __eq__(self, other):
+		if not isinstance(other, Robot):
+			return NotImplemented
+		
+		return self.robotId == other.robotId
+	
+	def __ne__(self, other):
+		result = self.__eq__(other)
+		
+		if result is NotImplemented:
+			return NotImplemented
+		
+		return not result
+	
+	def __lt__(self, other):
+		if not isinstance(other, Robot):
+			return NotImplemented
+		
+		return self.fitness() < other.fitness()
+	
+	def __gt__(self, other):
+		if not isinstance(other, Robot):
+			return NotImplemented
+		
+		return self.fitness() > other.fitness()
+	
+	def __le__(self, other):
+		if not isinstance(other, Robot):
+			return NotImplemented
+		
+		return self.fitness() <= other.fitness()
+	
+	def __ge__(self, other):
+		if not isinstance(other, Robot):
+			return NotImplemented
+		
+		return self.fitness() <= other.fitness()
+	
+	
+	def fitness(self):
+		return self.statistics["lifetime"]
 	
 	
 	def draw(self):
@@ -174,7 +213,6 @@ class Robot:
 					"fire":       self.fire }
 		
 		action[x]()
-		time.sleep(.0)
 	
 	
 	def displayString(self):
@@ -279,14 +317,14 @@ class Arena:
 	
 	
 	def resize(self):
-		(y, x) = self.env.getmaxyx()
+		(y, x) = self.env.screen.getmaxyx()
 		self.dimensions = Point(x, y)
 	
 	
 	def redraw(self):
-		self.env.clear()
+		self.env.screen.clear()
 		self.draw()
-		self.env.refresh()
+		self.env.screen.refresh()
 	
 	
 	def draw(self):
@@ -294,12 +332,12 @@ class Arena:
 			r.draw()
 		
 		for b in self.bullets:
-					b.draw()
+			b.draw()
 	
 	
 	def drawString(self, x, y, s, color = 0):
 		try:
-			self.env.addstr(self.upperLeft.y + y, self.upperLeft.x + x, s, curses.color_pair(color))
+			self.env.screen.addstr(self.upperLeft.y + y, self.upperLeft.x + x, s, curses.color_pair(color))
 		except:
 			pass
 	
@@ -338,15 +376,15 @@ class Arena:
 				
 		self.repo.extend(self.robots)
 		self.repo.sort(cmp=lambda a, b: cmp(b.statistics["lifetime"], a.statistics["lifetime"]))
-		del self.repo[populationLimit:]
+		del self.repo[self.env.populationLimit:]
 		for r in robots:
-			newrobo = crossover(random.choice(self.repo), random.choice(self.repo))
+			newrobo = crossover(self.env, random.choice(self.repo), random.choice(self.repo))
 			newrobo.location.x = r.location.x
 			newrobo.location.y = r.location.y
 			
 			# mutate randomly (.25 alpha)
 			if random.uniform(0, 1) <= .25:
-				mutate(newrobo)
+				mutate(self.env, newrobo)
 			
 			self.addRobots([newrobo])
 	
@@ -377,52 +415,64 @@ class Arena:
 	
 
 
-def runGA(env, parameters):
-	# initialize curses colors
-	initColors()
-	try:
-		curses.curs_set(0)
-	except:
-		pass
+class Environment:
 	
-	global possibleInstructions
-	global populationLimit
+	# instance
+	speed = None
+	arenaSize = None
+	crossoverRate = None
+	mutationRate = None
+	selectionMethod = None
+	populationLimit = None
+	stoppingCondition = None
+	maxTime = None
 	
-	populationLimit = 10
-	maxTime = 2000
-	maxInstructions = 50
-	possibleInstructions = ["forward", "reverse", "spin_left", "spin_right", "fire"]
+	screen = None
 	
-	statfile = open("stats", "w");
-	verbosefile = open("verbose_statistics", "w")
-	gnuplot = os.popen("gnuplot -persist", "w")
+	possibleInstructions = None
+	maxInstructions = None
 	
-	#init gnuplot
-	gnuplot.write("set terminal x11\n")
-	gnuplot.write("set title \"Time Slice vs Best Robot\"\n")
-	gnuplot.write("plot \'stats\' with lines\n")
+	shouldPlot = None
 	
-	# create the arena 
+	def __init__(self, screen):
+		# instance
+		self.speed = "fast"
+		self.arenaSize = (100, 50)
+		self.crossoverRate = .5
+		self.mutationRate = .25
+		self.selectionMethod = 1
+		self.populationLimit = 10
+		self.stoppingCondition = "time"
+		self.maxTime = 2000
+		
+		self.screen = screen
+		
+		self.possibleInstructions = ["forward", "reverse", "spin_left", "spin_right", "fire"]
+		self.maxInstructions = 50
+		
+		self.shouldPlot = False
+	
+
+
+def runGA(env):
+	logs = initLogs(env)
+	plot = initPlot(env)
+	
+	# initialize arena and generation zero
 	arena = Arena(env)
-	
-	# create the initial population
-	population = initPopulation(arena, possibleInstructions, maxInstructions, populationLimit)
-	
-	# add robots to the arena
+	population = initPopulation(arena)
 	arena.addRobots(population)
 	
-	# when one dies, crossover/mutate, add new to pop, remove old
-	
 	# draw all of our robots to start with
-	for robot in arena.robots:
-		robot.draw()
+	arena.redraw()
 	
-	for timeSlice in range(1, maxTime):
+	for timeSlice in range(1, env.maxTime):
 		# run robots
-		for i in range(0, maxInstructions):
+		for i in range(0, env.maxInstructions):
 			for robot in arena.robots:
 				robot.runInstruction_n(i)
 			arena.redraw()
+			time.sleep(0)
 			
 		for r in arena.robots:
 			r.statistics["lifetime"] += 1
@@ -434,28 +484,22 @@ def runGA(env, parameters):
 			if r.statistics["lifetime"] > maxlife:
 				maxlife = r.statistics["lifetime"]
 				bestRobot = r
-		statfile.write(str(timeSlice) + " " + str(bestRobot.statistics["lifetime"]) + "\n")
-		statfile.flush()
 		
-		verbosefile.write(str(timeSlice) + " " + str(bestRobot.statistics) + "\n")
-		verbosefile.flush()
+		logSlice(env, logs, timeSlice, bestRobot)
+		plotSlice(env, plot, timeSlice, bestRobot)
 		
-		gnuplot.write("replot\n")
-		try:
-			gnuplot.flush()
-		except:
-			pass
-	
-	statfile.close()
-	gnuplot.close()
+		
+	closeLogs(env, logs)
+	closePlot(env, plot)
 
 
-def initPopulation(arena, possibleInsructions, maxInstructions, populationLimit):
+def initPopulation(arena):
 	population = []
+	env = arena.env
 	
-	for i in range(populationLimit):
+	for i in range(env.populationLimit):
 		robot = Robot()
-	 	robot.instructions = [random.choice(possibleInsructions) for i in range(maxInstructions)]
+	 	robot.instructions = [random.choice(env.possibleInstructions) for i in range(env.maxInstructions)]
 		robot.location.x = random.randrange(0, arena.dimensions.x)
 		robot.location.y = random.randrange(0, arena.dimensions.y)
 	 	
@@ -483,13 +527,86 @@ def nextPosition(location, direction, amount = 1):
 	return newLocation
 
 
-def initColors():
+def initCurses():
 	curses.init_pair(1, curses.COLOR_RED, curses.COLOR_BLACK)
 	curses.init_pair(2, curses.COLOR_YELLOW, curses.COLOR_BLACK)
 	curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK)
+	
+	try:
+		curses.curs_set(0)
+	except:
+		pass
 
 
-def crossover(robota, robotb):
+def initLogs(env):
+	verboseFile = open("verbose_statistics", "w")
+	
+	return verboseFile
+
+
+def initPlot(env):
+	if not env.shouldPlot:
+		return
+	
+	# initialize stats file	
+	statfile = open("stats", "w");
+	statfile.write("0 0\n")
+	statfile.flush()
+	
+	gnuplot = os.popen("gnuplot -persist", "w")
+	
+	# initialize gnuplot
+	gnuplot.write("set terminal x11\n")
+	gnuplot.write("set title \"Time Slice vs Best Robot\"\n")
+	gnuplot.write("plot \'stats\' with lines\n")
+	
+	return (statfile, gnuplot)
+
+
+def logSlice(env, logs, timeSlice, bestRobot):
+	verboseFile = logs
+	
+	if bestRobot is not None:
+		verboseFile.write(str(timeSlice) + " " + str(bestRobot.statistics) + "\n")
+		verboseFile.flush()
+	
+
+	
+def plotSlice(env, plot, timeSlice, bestRobot):
+	if not env.shouldPlot:
+		return
+	
+	(statFile, gnuplot) = plot
+	
+	if bestRobot is not None:
+		statFile.write(str(timeSlice) + " " + str(bestRobot.statistics["lifetime"]) + "\n")
+		statFile.flush()
+		
+		gnuplot.write("replot\n")
+		try:
+			gnuplot.flush()
+		except:
+			pass
+	
+
+
+def closeLogs(env, logs):
+	verboseFile = logs
+	
+	verboseFile.close()
+
+
+def closePlot(env, plot):
+	if not env.shouldPlot:
+		return
+	
+	(statFile, gnuplot) = plot
+	
+	statFile.close()
+	gnuplot.close()
+
+
+def crossover(env, robota, robotb):
 	#crossover the robots instruction arrays at their midpoint
 	lena = len(robota.instructions)
 	lenb = len(robotb.instructions)
@@ -504,11 +621,11 @@ def crossover(robota, robotb):
 	return newrobo
 
 
-def mutate(robota):
+def mutate(env, robota):
 	# randomly replace one instruction with another
 	newrobo = Robot()
 	newrobo.instructions = robota.instructions
-	newrobo.instructions[random.randrange(0, len(newrobo.instructions))] = random.choice(possibleInstructions)
+	newrobo.instructions[random.randrange(0, len(newrobo.instructions))] = random.choice(env.possibleInstructions)
 	
 	newrobo.location = robota.location
 	
@@ -516,16 +633,31 @@ def mutate(robota):
 	return newrobo
 
 
-def main():
-	parameters = {"speed"				: "fast",
-				  "arenaSize"			: (100, 50),
-				  "crossover"			: .5,
-				  "mutation"			: .25,
-				  "selectionMethod"		: 1,
-				  "populationLimit"		: 100,
-				  "stopAt"				: 2000}
+def cursesMain(screen):
+	# initialize curses
+	initCurses()
 	
-	curses.wrapper(runGA, parameters)
+	# initialize environment
+	env = Environment(screen)
+	
+	env.speed 					= "fast"
+	env.arenaSize 				= (100, 50)
+	env.crossoverRate 			= .5
+	env.mutationRate 			= .25
+	env.selectionMethod 		= 1
+	env.populationLimit 		= 10
+	env.stoppingCondition 		= 2000
+	
+	env.possibleInstructions 	= ["forward", "reverse", "spin_left", "spin_right", "fire"]
+	env.maxInstructions 		= 50
+	
+	env.shouldPlot 				= False
+	
+	runGA(env)
+
+
+def main():
+	curses.wrapper(cursesMain)
 
 
 if __name__ == '__main__':

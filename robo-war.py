@@ -627,7 +627,7 @@ def plotSlice(env, plot, timeSlice, aliveRobots, deadRobots):
 
 
 def closeLogs(env, logs):
-	if not shouldLog:
+	if not env.shouldLog:
 		return
 	
 	verboseFile = logs

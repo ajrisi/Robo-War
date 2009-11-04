@@ -147,6 +147,15 @@ Reproduction, Selection / Checkpoint 5:
 	
 	This selection and reproduction scheme seems to work very well.  You can see from the stats file and the graph that robot lifespan increases throughout the generations.  As the robots evolve, they become more effective killers and survivors and it is evident that we start to converge on a solution after around 2000 time slices.
 	
+	
+Population / Checkpoint 6:
+	
+	We chose to vary the population size to see its affect on convergence.  We used population sizes of small (5 robots), medium (25 robots), and large (50 robots).  Surprisingly smaller population sizes seem to converge to much higher values.  We expected larger population to work better since there are more robots to choose from in crossover and mutation, but small populations yield higher individual fitness.  The reason for this is that with a larger population size, there are more robots that can defeat the "best" robot, so its fitness (longevity) will never be as high.  For the extreme case, a small population of one robot will give very high fitness because there is no competition to kill the robot - one robot isn't much of a battle.  However looking at the graphs you can see that with larger populations we converge on a value sooner, even though it is a lower value.
+	
+	Therefore we find that small populations yield better individual fitness, but do not necessarily produce the greatest performance robots.  We included graphs for each population size: "large_population.png",  "medium_population.png", and "small_population.png".  These graphs illustrate the above conclusions about population size.
+	
+	We decided on a population size of medium so that our robots will have a little bit of breathing room to get high individual fitnesses, but also have enough competition to make them high performance.  This should result in a good compromise.
+	
 
 
 	Building:

@@ -60,7 +60,11 @@ class Bullet:
 	
 	
 	def go(self):
-		while not self.advance(): time.sleep(0)
+		while not self.advance():
+			if self.arena.env.speed is "slow":
+				time.sleep(.03)
+			elif self.arena.env.speed is "medium":
+				time.sleep(.01)
 	
 	
 	def advance(self):
@@ -74,7 +78,8 @@ class Bullet:
 		if hadCollision:
 			self.arena.removeBullets([self])
 		
-		# self.arena.redraw()
+		if self.arena.env.speed is "slow" or self.arena.env.speed is "medium":
+			self.arena.redraw()
 		
 		return hadCollision
 	
@@ -140,17 +145,12 @@ class Robot:
 	
 	def __eq__(self, other):
 		if not isinstance(other, Robot):
-			return NotImplemented
+			return False
 		
 		return self.robotId == other.robotId
 	
 	def __ne__(self, other):
-		result = self.__eq__(other)
-		
-		if result is NotImplemented:
-			return NotImplemented
-		
-		return not result
+		return not self.__eq__(other)
 	
 	def __lt__(self, other):
 		if not isinstance(other, Robot):
@@ -300,17 +300,17 @@ class Arena:
 	
 	# instance
 	robots = None
+	bestDeadRobots = None
 	bullets = None
 	dimensions = None
 	upperLeft = None
 	env = None
-	repo = None
 	
 	def __init__(self, env):
 		# instance
 		self.robots = []
+		self.bestDeadRobots = []
 		self.bullets = []
-		self.repo = []
 		self.env = env
 		self.upperLeft = Point(0, 0)
 		self.resize()
@@ -366,28 +366,20 @@ class Arena:
 		# remove the dead robots
 		self.removeRobots(robots)
 		
+		# add robot to dead array if they aren't already there
 		for r in robots:
-			#record the now-dead robot
-			try:
-				self.repo.index(r)
-			except:
-				r.arena = self
-				self.repo += [r]
-				
-		self.repo.extend(self.robots)
-		self.repo.sort(cmp=lambda a, b: cmp(b.statistics["lifetime"], a.statistics["lifetime"]))
-		del self.repo[self.env.populationLimit:]
-		for r in robots:
-			newrobo = crossover(self.env, random.choice(self.repo), random.choice(self.repo))
-			newrobo.location.x = r.location.x
-			newrobo.location.y = r.location.y
-			
-			# mutate randomly (.25 alpha)
-			if random.uniform(0, 1) <= .25:
-				mutate(self.env, newrobo)
-			
-			self.addRobots([newrobo])
-	
+			if r not in self.bestDeadRobots:
+				self.bestDeadRobots += [r]
+		
+		# truncate the best dead robots to only keep the very best
+		self.bestDeadRobots.sort(reverse=True)
+		self.bestDeadRobots = self.bestDeadRobots[:self.env.numberOfDeadToKeep]
+		
+		# crossover and mutate to produce new individuals to replace robots
+		newRobots = crossoverMutate(self, robots)
+		
+		# add the new robots to the arena
+		self.addRobots(newRobots)
 	
 	
 	def addRobots(self, robots):
@@ -419,13 +411,13 @@ class Environment:
 	
 	# instance
 	speed = None
-	arenaSize = None
-	crossoverRate = None
 	mutationRate = None
-	selectionMethod = None
+	amountToSelect = None
 	populationLimit = None
 	stoppingCondition = None
+	convergence = None
 	maxTime = None
+	numberOfDeadToKeep = None
 	
 	screen = None
 	
@@ -437,13 +429,13 @@ class Environment:
 	def __init__(self, screen):
 		# instance
 		self.speed = "fast"
-		self.arenaSize = (100, 50)
-		self.crossoverRate = .5
 		self.mutationRate = .25
-		self.selectionMethod = 1
+		self.amountToSelect = 10
 		self.populationLimit = 10
 		self.stoppingCondition = "time"
+		self.convergence = {"timeChange": 500, "valueChange": 1}
 		self.maxTime = 2000
+		self.numberOfDeadToKeep = 10
 		
 		self.screen = screen
 		
@@ -464,30 +456,56 @@ def runGA(env):
 	arena.addRobots(population)
 	
 	# draw all of our robots to start with
-	arena.redraw()
+	if env.speed is not "fastest":
+		arena.redraw()
+	
+	# for convergence detection
+	bestFitnesses = []
+	hasConvergence = False
 	
 	for timeSlice in range(1, env.maxTime):
 		# run robots
 		for i in range(0, env.maxInstructions):
 			for robot in arena.robots:
 				robot.runInstruction_n(i)
-			arena.redraw()
-			time.sleep(0)
+			
+			# draw the arena each frame unless we are going very fast
+			if env.speed is not "fastest":
+				arena.redraw()
+			
+			# sleep based on env.speed
+			if env.speed is "slow":
+				time.sleep(.3)
+			elif env.speed is "medium":
+				time.sleep(.08)
 			
 		for r in arena.robots:
 			r.statistics["lifetime"] += 1
 		
-		#now, calculate the average lifetime for the "best" of the dead
-		maxlife = 0
-		bestRobot = None
-		for r in arena.repo:
-			if r.statistics["lifetime"] > maxlife:
-				maxlife = r.statistics["lifetime"]
-				bestRobot = r
+		# get all of the robots, living and dead and sort them best first
+		allRobots = arena.robots + arena.bestDeadRobots
+		allRobots.sort(reverse=True)
 		
-		logSlice(env, logs, timeSlice, bestRobot)
-		plotSlice(env, plot, timeSlice, bestRobot)
+		logSlice(env, logs, timeSlice, allRobots)
+		plotSlice(env, plot, timeSlice, allRobots)
 		
+		# check for convergence
+		if env.stoppingCondition is "convergence":
+			if len(allRobots) > 0:
+				bestFitnesses += [allRobots[0].fitness()]
+		
+			if len(bestFitnesses) >= 2:
+				mostRecent = bestFitnesses[-1]
+				for i in range(len(bestFitnesses)):
+					if bestFitnesses[i] + env.convergence["valueChange"] > mostRecent:
+						if len(bestFitnesses) - i >= env.convergence["timeChange"]:
+							hasConvergence = True
+						break
+		
+			if hasConvergence:
+				break
+		
+	
 		
 	closeLogs(env, logs)
 	closePlot(env, plot)
@@ -563,23 +581,23 @@ def initPlot(env):
 	return (statfile, gnuplot)
 
 
-def logSlice(env, logs, timeSlice, bestRobot):
+def logSlice(env, logs, timeSlice, allRobots):
 	verboseFile = logs
 	
-	if bestRobot is not None:
-		verboseFile.write(str(timeSlice) + " " + str(bestRobot.statistics) + "\n")
+	if len(allRobots) > 0:
+		verboseFile.write(str(timeSlice) + " " + str(allRobots[0].statistics) + "\n")
 		verboseFile.flush()
 	
 
 	
-def plotSlice(env, plot, timeSlice, bestRobot):
+def plotSlice(env, plot, timeSlice, allRobots):
 	if not env.shouldPlot:
 		return
 	
 	(statFile, gnuplot) = plot
 	
-	if bestRobot is not None:
-		statFile.write(str(timeSlice) + " " + str(bestRobot.statistics["lifetime"]) + "\n")
+	if len(allRobots) > 0:
+		statFile.write(str(timeSlice) + " " + str(allRobots[0].statistics["lifetime"]) + "\n")
 		statFile.flush()
 		
 		gnuplot.write("replot\n")
@@ -604,6 +622,28 @@ def closePlot(env, plot):
 	
 	statFile.close()
 	gnuplot.close()
+
+
+def crossoverMutate(arena, robotsToReplace):
+	env = arena.env
+	newRobots = []
+	
+	allRobots = arena.robots + arena.bestDeadRobots
+	allRobots.sort(reverse=True)
+	
+	selected = allRobots[:env.amountToSelect]
+	
+	for oldRobot in robotsToReplace:
+		newRobot = crossover(env, random.choice(selected), random.choice(selected))
+		newRobot.location.x = oldRobot.location.x
+		newRobot.location.y = oldRobot.location.y
+		
+		if random.uniform(0, 1) <= env.mutationRate:
+			mutate(env, newRobot)
+		
+		newRobots += [newRobot]
+	
+	return newRobots
 
 
 def crossover(env, robota, robotb):
@@ -640,20 +680,31 @@ def cursesMain(screen):
 	# initialize environment
 	env = Environment(screen)
 	
-	env.speed 					= "fast"
-	env.arenaSize 				= (100, 50)
-	env.crossoverRate 			= .5
+	# speed can be:
+	#   slow - everything visible and slowed for perception including bullets
+	#   medium - robots easily visible and very fast bullets
+	#   fast - very fast robots and no bullets
+	#   fastest - nothing visible (only logs and maybe plot)
+	
+	env.speed 					= "fastest"
 	env.mutationRate 			= .25
-	env.selectionMethod 		= 1
+	env.amountToSelect 			= 10
 	env.populationLimit 		= 10
-	env.stoppingCondition 		= 2000
+	env.stoppingCondition 		= "convergence"
+	env.convergence				= {"timeChange": 500, "valueChange": 1}
+	env.maxTime 				= 2000
+	env.numberOfDeadToKeep 		= 10
 	
 	env.possibleInstructions 	= ["forward", "reverse", "spin_left", "spin_right", "fire"]
 	env.maxInstructions 		= 50
 	
-	env.shouldPlot 				= False
+	env.shouldPlot 				= True
 	
 	runGA(env)
+	
+	# TODO:
+	#  - settings file / commandline parameters
+	#  - graph best, average, and worst per generation (time slice)
 
 
 def main():
